@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -219,6 +220,19 @@ class SignalAdapter(BasePlatformAdapter):
                 for part in str(mention_aliases_raw).split(",")
                 if part.strip().lstrip("@")
             }
+        self._mention_alias_pattern = (
+            re.compile(
+                r"(?<![\w@])@(?:"
+                + "|".join(
+                    re.escape(alias)
+                    for alias in sorted(self.mention_aliases, key=len, reverse=True)
+                )
+                + r")(?![\w.-])",
+                re.IGNORECASE,
+            )
+            if self.mention_aliases
+            else None
+        )
 
         # Mention filter — only respond in groups when the bot account is @mentioned.
         # Read from config extra first, then SIGNAL_REQUIRE_MENTION env var.
@@ -682,17 +696,19 @@ class SignalAdapter(BasePlatformAdapter):
                     self._account_identifiers | {account_norm, account_raw, account_redacted}
                 ) if candidate
             }
-            text_lower = (text or "").lower()
-            alias_candidates = {
-                alias for alias in self.mention_aliases if alias
-            }
+            mentioned_by_alias = bool(
+                self._mention_alias_pattern
+                and self._mention_alias_pattern.search(text or "")
+            )
             # Check rendered mention tags OR raw mention metadata. Signal's
             # rendered text can include either the account number or a local
             # contact/display alias (for example "@hermes"), depending on how
-            # the sender has named the linked device in their contacts.
+            # the sender has named the linked device in their contacts. Alias
+            # matches must consume a complete @token so a longer handle such as
+            # "@hermes-helper" cannot bypass the mention gate.
             mentioned_in_text = bool((text or "") and (
                 any(a and f"@{a}" in text for a in account_candidates)
-                or any(f"@{alias}" in text_lower for alias in alias_candidates)
+                or mentioned_by_alias
             ))
             mentioned_in_metadata = any(
                 (m.get("number") in account_candidates) or (m.get("uuid") in account_candidates)

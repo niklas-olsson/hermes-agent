@@ -138,8 +138,29 @@ Group access is controlled by the `SIGNAL_GROUP_ALLOWED_USERS` env var:
 | Configuration | Behavior |
 |---------------|----------|
 | Not set (default) | All group messages are ignored. The bot only responds to DMs. |
-| Set with group IDs | Only listed groups are monitored (e.g., `groupId1,groupId2`). |
+| Set with group IDs or names | Only listed groups are monitored (for example, `groupId1,AgentChat`). Names are resolved to group IDs when the adapter connects. |
 | Set to `*` | The bot responds in any group it's a member of. |
+
+Mention behavior is configured in `~/.hermes/config.yaml`:
+
+```yaml
+signal:
+  require_mention: true
+  mention_aliases:
+    - hermes
+  free_response_groups:
+    - AgentChat
+```
+
+With `require_mention: true`, a group message is processed only when it contains
+a native mention or one of the configured aliases. Alias matching is
+case-insensitive and requires a complete `@` token: `@hermes` matches, while
+`@hermes-helper` does not. Slash commands bypass the mention gate.
+
+Groups listed under `free_response_groups` can message without a mention. Entries
+may use the same group IDs or names accepted by `SIGNAL_GROUP_ALLOWED_USERS`.
+This setting does not authorize an otherwise blocked group; it only relaxes the
+mention requirement after group access has been granted.
 
 ---
 

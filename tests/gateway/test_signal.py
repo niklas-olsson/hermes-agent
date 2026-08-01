@@ -2022,6 +2022,30 @@ class TestSignalGroupV2Routing:
         assert captured[0].text == "@hermes are you there?"
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("text", ["@hermesx status", "@hermes-helper status"])
+    async def test_longer_handle_does_not_satisfy_group_require_mention(
+        self, monkeypatch, text
+    ):
+        adapter = _make_signal_adapter(
+            monkeypatch,
+            group_allowed="g-mentions==",
+            require_mention=True,
+        )
+        captured = []
+
+        async def _capture(event):
+            captured.append(event)
+
+        adapter.handle_message = _capture
+
+        await adapter._handle_envelope(self._base_envelope({
+            "message": text,
+            "groupV2": {"id": "g-mentions=="},
+        }))
+
+        assert captured == []
+
+    @pytest.mark.asyncio
     async def test_command_bypasses_group_require_mention(self, monkeypatch):
         adapter = _make_signal_adapter(
             monkeypatch,
